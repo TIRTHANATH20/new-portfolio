@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tirtha Nath · Portfolio | Product & AI Generalist</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Three.js for 3D Dynamic Background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #050608;
+            color: #94a3b8;
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        /* 3D WebGL Background Canvas */
+        #bg-canvas-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.75;
+        }
+
+        /* Soft Vignette Overlay */
+        .vignette-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            background: radial-gradient(circle at 50% 25%, rgba(5, 6, 8, 0.25) 0%, rgba(5, 6, 8, 0.85) 70%, #050608 100%);
+        }
+
+        /* Premium Glass Card */
+        .card-surface {
+            position: relative;
+            background: rgba(11, 14, 20, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 1rem;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+        .card-surface::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(450px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(99, 102, 241, 0.12), transparent 40%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+        .card-surface:hover::before {
+            opacity: 1;
+        }
+        .card-surface:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.9), 0 0 20px rgba(99, 102, 241, 0.08);
+            transform: translateY(-2px);
+        }
+
+        /* Subtle Tags */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+        }
+        .chip-accent {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+        }
+        .chip-emerald {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+        }
+
+        /* Buttons */
+        .btn-solid {
+            background: #ffffff;
+            color: #050608;
+            font-weight: 600;
+            padding: 0.75rem 1.6rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 18px rgba(255, 255, 255, 0.15);
+        }
+        .btn-solid:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-subtle {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            font-weight: 500;
+            padding: 0.75rem 1.6rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(12px);
+        }
+        .btn-subtle:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* Lightbox modal */
+        #lightbox {
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        #lightbox.closed {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #lightbox.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen selection:bg-indigo-500 selection:text-white">
+
+    <!-- Three.js 3D Dynamic Background -->
+    <div id="bg-canvas-container"></div>
+    <div class="vignette-overlay"></div>
+
+    <!-- Navigation Header -->
+    <div class="fixed top-5 left-0 right-0 z-50 flex justify-center px-4">
+        <header class="bg-[#080a0f]/80 backdrop-blur-xl border border-white/10 rounded-full px-5 py-2.5 flex items-center justify-between gap-6 max-w-4xl w-full shadow-2xl">
+            <a href="#hero" class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center font-bold text-xs text-white">
+                    TN
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-white text-sm tracking-tight">Tirtha Nath</span>
+                    <span class="text-xs text-slate-500 font-mono hidden sm:inline">· Product & AI</span>
+                </div>
+            </a>
+
+            <!-- Nav Links -->
+            <nav class="hidden md:flex items-center gap-6 text-xs font-medium text-slate-300">
+                <a href="#uiux" class="hover:text-white transition-colors">UI/UX Work</a>
+                <a href="#engineering" class="hover:text-white transition-colors">Engineering & AI</a>
+                <a href="#research" class="hover:text-white transition-colors">Publications</a>
+                <a href="#experience" class="hover:text-white transition-colors">Experience</a>
+            </nav>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2.5">
+                <a href="./Tirtha_Nath_Resume.pdf" target="_blank" class="chip chip-accent hover:bg-indigo-500/20 text-xs py-1 px-3">
+                    <i class="fas fa-file-pdf text-indigo-400"></i> Resume
+                </a>
+                <a href="https://github.com/TIRTHANATH20" target="_blank" class="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all text-xs" title="GitHub">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://www.linkedin.com/in/tirtha-nath" target="_blank" class="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all text-xs" title="LinkedIn">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+            </div>
+        </header>
+    </div>
+
+    <!-- MAIN WRAPPER -->
+    <main class="relative z-10 max-w-5xl mx-auto px-6 pt-36 pb-28 space-y-28">
+
+        <!-- HERO SECTION (Polished, Restrained Editorial Hierarchy) -->
+        <section id="hero" class="pt-8 sm:pt-16 pb-4 text-center max-w-3xl mx-auto space-y-6 flex flex-col items-center">
+            
+            <!-- Refined Status Pill -->
+            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-slate-300 text-xs font-mono">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Available for Product & AI Roles</span>
+            </div>
+
+            <!-- Balanced Headline -->
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.12]">
+                Designing interfaces and building intelligent systems.
+            </h1>
+
+            <!-- Bio -->
+            <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-light max-w-2xl mx-auto">
+                I design products in Figma and build applied AI and agentic systems in Python. Co-author of two IEEE conference papers.
+            </p>
+
+            <!-- Crisp, High-Contrast Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center gap-3.5 pt-2">
+                <a href="#uiux" class="btn-solid">
+                    <span>View UI/UX Work</span>
+                    <i class="fas fa-arrow-down text-xs"></i>
+                </a>
+                <a href="#engineering" class="btn-subtle">
+                    <i class="fas fa-code text-cyan-400 text-xs"></i>
+                    <span>Engineering & AI</span>
+                </a>
+                <a href="./Tirtha_Nath_Resume.pdf" target="_blank" class="btn-subtle">
+                    <i class="fas fa-file-pdf text-indigo-400 text-xs"></i>
+                    <span>Resume PDF</span>
+                </a>
+                <a href="mailto:tirthanath2006@gmail.com" class="btn-subtle">
+                    <i class="fas fa-envelope text-slate-400 text-xs"></i>
+                    <span>Contact</span>
+                </a>
+            </div>
+        </section>
+
+
+        <!-- UI/UX FIGMA PROJECTS (Uniform, Pristine 3-Column Grid) -->
+        <section id="uiux" class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-white/10">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">UI/UX Prototypes</h2>
+                    <p class="text-xs text-slate-400 mt-1">Product design and interface flows designed in Figma during Edu-versity internship.</p>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="chip chip-accent hover:bg-indigo-500/20 text-xs py-1 px-3">
+                        <i class="fas fa-external-link-alt"></i> 11-Page Design Report
+                    </a>
+                    <a href="https://drive.google.com/file/d/1m23UAVisMBNGp4DsQMZOJ7IsG6OO7oub/view" target="_blank" class="chip text-xs py-1 px-3">
+                        <i class="fas fa-award"></i> Certificate
+                    </a>
+                </div>
+            </div>
+
+            <!-- 3-Column Grid: Every Single Card Has Identical Proportions & Layout -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- 1. E-Commerce -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-black/40 border-b border-white/5 cursor-pointer relative overflow-hidden" onclick="openLightbox(0)">
+                        <img src="./assets/ui_ecommerce.png" alt="E-Commerce Screens" class="w-full h-52 object-cover object-top rounded group-hover:scale-[1.02] transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="chip chip-accent text-xs bg-indigo-600/90 text-white border-none py-1 px-3 shadow-lg font-sans">
+                                <i class="fas fa-search-plus"></i> Inspect Screens
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip chip-accent">E-Commerce</span>
+                                <span class="chip">6 Screens</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">E-Commerce Mobile App</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Dark storefront, product variant selection, real-time delivery pincode check, and multi-gateway checkout flow.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="openLightbox(0)" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                Inspect Fullscreen ↗
+                            </button>
+                            <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="text-slate-500 hover:text-slate-300">
+                                PDF Report ↗
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Mango EdTech -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-black/40 border-b border-white/5 cursor-pointer relative overflow-hidden" onclick="openLightbox(1)">
+                        <img src="./assets/ui_education.png" alt="Mango EdTech Screens" class="w-full h-52 object-cover object-top rounded group-hover:scale-[1.02] transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="chip chip-accent text-xs bg-indigo-600/90 text-white border-none py-1 px-3 shadow-lg font-sans">
+                                <i class="fas fa-search-plus"></i> Inspect Screens
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip chip-accent">EdTech & Courses</span>
+                                <span class="chip">6 Screens</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">"Mango" Learning Platform</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                3-step value onboarding flow, interactive category discovery, course syllabus view, and structured lesson video player.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="openLightbox(1)" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                Inspect Fullscreen ↗
+                            </button>
+                            <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="text-slate-500 hover:text-slate-300">
+                                PDF Report ↗
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. CineStream OTT -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-black/40 border-b border-white/5 cursor-pointer relative overflow-hidden" onclick="openLightbox(2)">
+                        <img src="./assets/ui_cinema.jpg" alt="CineStream OTT Screens" class="w-full h-52 object-cover object-top rounded group-hover:scale-[1.02] transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="chip chip-accent text-xs bg-indigo-600/90 text-white border-none py-1 px-3 shadow-lg font-sans">
+                                <i class="fas fa-search-plus"></i> Inspect Screens
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip chip-accent">OTT Streaming</span>
+                                <span class="chip">5 Screens</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">CineStream Entertainment</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                True-black cinema UI: hero billboard trailer, cast details, curated genre rails, watchlist, and tiered subscriptions.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="openLightbox(2)" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                Inspect Fullscreen ↗
+                            </button>
+                            <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="text-slate-500 hover:text-slate-300">
+                                PDF Report ↗
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. QuickBite Food Delivery -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-black/40 border-b border-white/5 cursor-pointer relative overflow-hidden" onclick="openLightbox(3)">
+                        <img src="./assets/ui_food.png" alt="QuickBite Food Screens" class="w-full h-52 object-cover object-top rounded group-hover:scale-[1.02] transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="chip chip-accent text-xs bg-indigo-600/90 text-white border-none py-1 px-3 shadow-lg font-sans">
+                                <i class="fas fa-search-plus"></i> Inspect Screens
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip chip-accent">Food Logistics</span>
+                                <span class="chip">6 Screens</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">QuickBite Food Delivery</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Menu discovery, calorie & portion dish customizer, and live GPS map tracking with multi-step status milestones.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="openLightbox(3)" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                Inspect Fullscreen ↗
+                            </button>
+                            <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="text-slate-500 hover:text-slate-300">
+                                PDF Report ↗
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. "V" Recruitment Platform -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-black/40 border-b border-white/5 cursor-pointer relative overflow-hidden" onclick="openLightbox(4)">
+                        <img src="./assets/ui_jobs.png" alt="V Recruitment Screens" class="w-full h-52 object-cover object-top rounded group-hover:scale-[1.02] transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="chip chip-accent text-xs bg-indigo-600/90 text-white border-none py-1 px-3 shadow-lg font-sans">
+                                <i class="fas fa-search-plus"></i> Inspect Screens
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip chip-accent">Job Portal & ATS</span>
+                                <span class="chip">5 Screens</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">"V" Recruitment Platform</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Transparent salary tags (10–20 LPA), standardized role specs, employer job creator, and applicant progress tracking.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="openLightbox(4)" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                Inspect Fullscreen ↗
+                            </button>
+                            <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="text-slate-500 hover:text-slate-300">
+                                PDF Report ↗
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. AccessView Visual AI -->
+                <div class="card-surface flex flex-col justify-between group">
+                    <div class="p-3.5 bg-indigo-950/20 border-b border-indigo-500/15 flex flex-col items-center justify-center text-center h-52 rounded">
+                        <i class="fas fa-eye text-3xl text-indigo-400 mb-2"></i>
+                        <div class="text-white font-bold text-sm">AccessView Assistive AI</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5 font-mono">Vision-to-Speech Accessibility UX</div>
+                    </div>
+                    <div class="p-5 flex flex-col justify-between flex-grow">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="chip text-cyan-400 border-cyan-500/20 bg-cyan-500/10">Accessibility AI</span>
+                                <span class="chip">Python</span>
+                            </div>
+                            <h3 class="text-base font-bold text-white mb-1.5">AccessView Visual Assistant</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Translates real-time camera frames into descriptive audio narration for visually impaired users with minimal friction.
+                            </p>
+                        </div>
+                        <div class="pt-4 mt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <a href="https://github.com/TIRTHANATH20/accessview" target="_blank" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                                <i class="fab fa-github"></i> View GitHub ↗
+                            </a>
+                            <span class="text-slate-500">Open Source</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ENGINEERING & APPLIED AI PROJECTS -->
+        <section id="engineering" class="space-y-6">
+            <div class="pb-3 border-b border-white/10">
+                <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Engineering & Applied AI</h2>
+                <p class="text-xs text-slate-400 mt-1">Autonomous systems, vehicle routing engines, and multi-agent protocols.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- 1. RouteXpert -->
+                <div class="card-surface p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="chip chip-accent">IEEE ICNWC 2026</span>
+                            <span class="text-xs font-mono text-slate-500">Traffic AI</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">RouteXpert: Adaptive Traffic Management</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                            Multi-intersection symbolic AI rule engine coordinating traffic signals dynamically. Prioritizes green transit corridors for emergency vehicles and mitigates bottleneck congestion.
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            <span class="chip">Symbolic AI</span>
+                            <span class="chip">NetworkX</span>
+                            <span class="chip">Streamlit</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                        <a href="https://ieeexplore.ieee.org/abstract/document/11518196" target="_blank" class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                            <i class="fas fa-book-open"></i> IEEE Paper ↗
+                        </a>
+                        <a href="https://github.com/TIRTHANATH20/RouteXpert-AI" target="_blank" class="text-slate-400 hover:text-white flex items-center gap-1">
+                            <i class="fab fa-github"></i> Repository ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 2. Smart Ambulance Navigation -->
+                <div class="card-surface p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="chip chip-emerald">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live on Render
+                            </span>
+                            <span class="text-xs font-mono text-slate-500">In-Vehicle App</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">Smart Ambulance In-Vehicle Routing</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                            Cockpit navigation assistant for ambulance drivers. Calculates optimal hospital arrival routes using OSRM algorithms and OpenStreetMap telemetry with hands-free voice control.
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            <span class="chip">OSRM Routing</span>
+                            <span class="chip">OpenStreetMap</span>
+                            <span class="chip">Voice Control</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                        <a href="https://smartambulanceroutingsystem.onrender.com" target="_blank" class="btn-solid text-xs py-1.5 px-3.5">
+                            <i class="fas fa-play text-[10px]"></i> Launch Demo
+                        </a>
+                        <a href="https://github.com/TIRTHANATH20/Ambulance-Routing-System" target="_blank" class="text-slate-400 hover:text-white flex items-center gap-1">
+                            <i class="fab fa-github"></i> Source ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. Automotive Predictive Maintenance -->
+                <div class="card-surface p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="chip">Machine Learning</span>
+                            <span class="text-xs font-mono text-slate-500">Telemetry Data</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">Automotive Predictive Maintenance</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                            Machine learning pipeline trained on vehicular telemetry sensor streams to forecast brake, transmission, and engine stress failures prior to road breakdowns.
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            <span class="chip">Scikit-Learn</span>
+                            <span class="chip">Telemetry</span>
+                            <span class="chip">Python</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                        <a href="https://github.com/TIRTHANATH20/Automotive-Predictive-Maintenance" target="_blank" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                            <i class="fab fa-github"></i> View Model Code ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 4. Agent Marketplace -->
+                <div class="card-surface p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="chip chip-accent">Multi-Agent Protocol</span>
+                            <span class="text-xs font-mono text-slate-500">IEEE ICICI 2026</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">Agent Marketplace Architecture</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                            Multi-agent coordination system connecting six autonomous software agents using Anthropic Model Context Protocol (MCP) and Google Agent-to-Agent (A2A).
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            <span class="chip">FastAPI</span>
+                            <span class="chip">Anthropic MCP</span>
+                            <span class="chip">Google A2A</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                        <a href="https://github.com/TIRTHANATH20/Agent-Marketplace" target="_blank" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                            <i class="fab fa-github"></i> View Architecture ↗
+                        </a>
+                        <span class="text-slate-500">AWS EC2</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- RESEARCH PUBLICATIONS -->
+        <section id="research" class="space-y-6">
+            <div class="pb-3 border-b border-white/10">
+                <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">IEEE Conference Publications</h2>
+                <p class="text-xs text-slate-400 mt-1">Peer-reviewed conference research papers.</p>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Paper 1 -->
+                <div class="card-surface p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    <div class="space-y-1.5 max-w-2xl">
+                        <div class="flex items-center gap-2">
+                            <span class="chip chip-accent">IEEE ICNWC 2026</span>
+                            <span class="text-xs font-mono text-slate-500">DOI: 10.1109/ICNWC68145.2026.11518196</span>
+                        </div>
+                        <h3 class="text-base font-bold text-white leading-snug">
+                            RouteXpert: An Explainable Symbolic AI Framework for Multi-Intersection Adaptive Traffic Control
+                        </h3>
+                        <p class="text-xs font-mono text-slate-400">A. Jayakrishnan, T. Nath and B. M</p>
+                    </div>
+                    <a href="https://ieeexplore.ieee.org/abstract/document/11518196" target="_blank" class="btn-subtle text-xs py-2 px-4 shrink-0 self-start md:self-center">
+                        <i class="fas fa-external-link-alt"></i> IEEE Xplore ↗
+                    </a>
+                </div>
+
+                <!-- Paper 2 -->
+                <div class="card-surface p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    <div class="space-y-1.5 max-w-2xl">
+                        <div class="flex items-center gap-2">
+                            <span class="chip chip-accent">IEEE ICICI 2026</span>
+                            <span class="text-xs font-mono text-slate-500">IEEE Proceedings</span>
+                        </div>
+                        <h3 class="text-base font-bold text-white leading-snug">
+                            Integrated Framework for Secure Communication among Multiple Agents using MCP and A2A
+                        </h3>
+                        <p class="text-xs font-mono text-slate-400">T. Nath, D. Yadav, V. Damera, G. Balamurugan, P. Jha</p>
+                    </div>
+                    <a href="https://ieeexplore.ieee.org/abstract/document/11580474" target="_blank" class="btn-subtle text-xs py-2 px-4 shrink-0 self-start md:self-center">
+                        <i class="fas fa-external-link-alt"></i> IEEE Xplore ↗
+                    </a>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- EXPERIENCE & CREDENTIALS -->
+        <section id="experience" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Work Experience -->
+            <div class="space-y-4">
+                <div class="pb-3 border-b border-white/10">
+                    <h2 class="text-xl font-bold text-white tracking-tight">Work History</h2>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="card-surface p-5">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-bold text-white">UI/UX Design Intern</h3>
+                            <span class="text-xs font-mono text-slate-500">Feb – Apr 2025</span>
+                        </div>
+                        <div class="text-xs font-medium text-indigo-400 mb-2">Edu-versity</div>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-3">
+                            Designed user journeys, component libraries, and interactive prototypes for 5 mobile applications in Figma.
+                        </p>
+                        <a href="https://drive.google.com/file/d/1m23UAVisMBNGp4DsQMZOJ7IsG6OO7oub/view" target="_blank" class="text-xs font-mono text-slate-400 hover:text-indigo-300 flex items-center gap-1.5">
+                            <i class="fas fa-award"></i> View Certificate ↗
+                        </a>
+                    </div>
+
+                    <div class="card-surface p-5">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-bold text-white">Marketing & UX Intern</h3>
+                            <span class="text-xs font-mono text-slate-500">Feb – May 2026</span>
+                        </div>
+                        <div class="text-xs font-medium text-indigo-400 mb-2">Wiingy Private Limited</div>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-3">
+                            Gathered qualitative feedback across user cohorts to identify onboarding friction points and improve product retention.
+                        </p>
+                        <a href="https://drive.google.com/file/d/1fsvKnpPapM9bbEgzL6FBTy1DTYmaVO_S/view" target="_blank" class="text-xs font-mono text-slate-400 hover:text-indigo-300 flex items-center gap-1.5">
+                            <i class="fas fa-award"></i> View Certificate ↗
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certifications -->
+            <div class="space-y-4">
+                <div class="pb-3 border-b border-white/10">
+                    <h2 class="text-xl font-bold text-white tracking-tight">Credentials</h2>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a href="https://www.credly.com/badges/9411aa73-725b-4e0c-82e9-bd9eda698545" target="_blank" class="card-surface p-4 flex flex-col justify-between group">
+                        <div>
+                            <i class="fas fa-certificate text-indigo-400 text-sm mb-1"></i>
+                            <h4 class="text-xs font-bold text-white">SAP Generative AI</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Developer certification</p>
+                        </div>
+                        <span class="text-[10px] font-mono text-indigo-400 mt-2 flex items-center gap-1">
+                            Credly Badge ↗
+                        </span>
+                    </a>
+
+                    <a href="https://catalog-education.oracle.com/ords/certview/sharebadge?id=344E449743EB654726ECCE7150E923DC1C25A4F4A044928C09BF358D33D8E387" target="_blank" class="card-surface p-4 flex flex-col justify-between group">
+                        <div>
+                            <i class="fas fa-cloud text-cyan-400 text-sm mb-1"></i>
+                            <h4 class="text-xs font-bold text-white">Oracle Cloud ERP</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Enterprise essentials</p>
+                        </div>
+                        <span class="text-[10px] font-mono text-cyan-400 mt-2 flex items-center gap-1">
+                            Oracle Verified ↗
+                        </span>
+                    </a>
+
+                    <a href="https://drive.google.com/file/d/1Bfn63Y0pDvR6aMyB7PJaLHb5e2UxdaCl/view" target="_blank" class="card-surface p-4 flex flex-col justify-between group">
+                        <div>
+                            <i class="fas fa-microchip text-purple-400 text-sm mb-1"></i>
+                            <h4 class="text-xs font-bold text-white">VLSI Physical Design</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">IITM Pravartak</p>
+                        </div>
+                        <span class="text-[10px] font-mono text-purple-400 mt-2 flex items-center gap-1">
+                            Certificate ↗
+                        </span>
+                    </a>
+
+                    <a href="https://drive.google.com/file/d/1afUOOPZVhYkAVwTv1rcx1aEKWWU6vEgT/view" target="_blank" class="card-surface p-4 flex flex-col justify-between group">
+                        <div>
+                            <i class="fab fa-github text-emerald-400 text-sm mb-1"></i>
+                            <h4 class="text-xs font-bold text-white">GitHub Copilot</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Microsoft certified</p>
+                        </div>
+                        <span class="text-[10px] font-mono text-emerald-400 mt-2 flex items-center gap-1">
+                            Certificate ↗
+                        </span>
+                    </a>
+                </div>
+
+                <!-- NPTEL -->
+                <div class="card-surface p-3.5 flex items-center justify-between text-xs">
+                    <span class="text-slate-300 font-medium text-xs">NPTEL Courses:</span>
+                    <div class="flex items-center gap-2">
+                        <a href="https://drive.google.com/file/d/1DC_tnFWG3fz_zEGTSLKfCDfDZGh8U6-a/view" target="_blank" class="chip">DBMS</a>
+                        <a href="https://drive.google.com/file/d/1Uu-0-9FO2O6n8xzafFQClQJF1nfpKaoR/view" target="_blank" class="chip">ML</a>
+                        <a href="https://drive.google.com/file/d/1yY5j55eSgWsJ0E9Y3KsRXWc-X9sTAbTC/view" target="_blank" class="chip">Java</a>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+        <footer class="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div>
+                <span class="font-bold text-white">Tirtha Nath</span> · 
+                <a href="mailto:tirthanath2006@gmail.com" class="hover:text-white transition-colors font-mono">tirthanath2006@gmail.com</a> · 
+                <span class="font-mono">+91 8247228028</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="https://github.com/TIRTHANATH20" target="_blank" class="hover:text-white transition-colors text-sm"><i class="fab fa-github"></i></a>
+                <a href="https://www.linkedin.com/in/tirtha-nath" target="_blank" class="hover:text-white transition-colors text-sm"><i class="fab fa-linkedin-in"></i></a>
+                <a href="./Tirtha_Nath_Resume.pdf" target="_blank" class="chip hover:bg-white/10">Resume PDF</a>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- FULLSCREEN HIGH-RES LIGHTBOX MODAL WITH GALLERY NAVIGATION -->
+    <div id="lightbox" class="closed fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
+        <div class="relative max-w-5xl w-full max-h-[92vh] flex flex-col items-center">
+            
+            <!-- Modal Header -->
+            <div class="w-full flex items-center justify-between pb-3 mb-2 border-b border-white/10 text-xs font-mono text-slate-300">
+                <div id="lightbox-title" class="text-white font-medium truncate max-w-md"></div>
+                <div class="flex items-center gap-4">
+                    <span class="hidden sm:inline text-slate-500">Esc to close · Arrow keys to switch</span>
+                    <button onclick="closeLightbox()" class="text-slate-400 hover:text-white text-base font-mono focus:outline-none px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <!-- Viewport -->
+            <div class="overflow-auto max-h-[78vh] w-full flex items-center justify-center rounded-xl bg-black/60 border border-white/10 p-2">
+                <img id="lightbox-image" src="" alt="Figma Prototype Screen" class="max-h-[76vh] w-auto object-contain rounded-lg shadow-2xl">
+            </div>
+
+            <!-- Footer Toolbar -->
+            <div class="flex items-center gap-3 mt-3 text-xs font-mono text-slate-400">
+                <button onclick="navigateLightbox(-1)" class="chip hover:text-white">
+                    <i class="fas fa-chevron-left"></i> Previous Project
+                </button>
+                <a href="https://drive.google.com/file/d/10wvquTTo_EifH-86fs1t2ENBps2gi_Ja/view" target="_blank" class="chip chip-accent hover:bg-indigo-500/20">
+                    <i class="fas fa-external-link-alt"></i> Open Design Report PDF
+                </a>
+                <button onclick="navigateLightbox(1)" class="chip hover:text-white">
+                    Next Project <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT: THREE.JS 3D DYNAMIC BACKGROUND & LIGHTBOX -->
+    <script>
+        // Three.js 3D Dynamic Background
+        (function() {
+            const container = document.getElementById('bg-canvas-container');
+            if (!container || typeof THREE === 'undefined') return;
+
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050608, 0.009);
+
+            const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(0, 32, 95);
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            const countX = 80;
+            const countZ = 80;
+            const numParticles = countX * countZ;
+            const positions = new Float32Array(numParticles * 3);
+            const colors = new Float32Array(numParticles * 3);
+
+            let i = 0;
+            const separation = 2.4;
+            const halfW = (countX * separation) / 2;
+            const halfD = (countZ * separation) / 2;
+
+            for (let ix = 0; ix < countX; ix++) {
+                for (let iz = 0; iz < countZ; iz++) {
+                    const px = ix * separation - halfW;
+                    const pz = iz * separation - halfD;
+
+                    positions[i] = px;
+                    positions[i + 1] = 0;
+                    positions[i + 2] = pz;
+
+                    const ratio = (ix + iz) / (countX + countZ);
+                    colors[i] = 0.22 + ratio * 0.15;
+                    colors[i + 1] = 0.30 + ratio * 0.40;
+                    colors[i + 2] = 0.80 + ratio * 0.15;
+
+                    i += 3;
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const canvasDot = document.createElement('canvas');
+            canvasDot.width = 32;
+            canvasDot.height = 32;
+            const dotCtx = canvasDot.getContext('2d');
+            const radGrad = dotCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            radGrad.addColorStop(0, 'rgba(255,255,255,1)');
+            radGrad.addColorStop(0.35, 'rgba(129, 140, 248, 0.7)');
+            radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            dotCtx.fillStyle = radGrad;
+            dotCtx.fillRect(0, 0, 32, 32);
+
+            const texture = new THREE.CanvasTexture(canvasDot);
+            const material = new THREE.PointsMaterial({
+                size: 2.1,
+                vertexColors: true,
+                map: texture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                opacity: 0.7
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            let mouseX = 0;
+            let mouseY = 0;
+            let targetMouseX = 0;
+            let targetMouseY = 0;
+
+            window.addEventListener('mousemove', (e) => {
+                targetMouseX = (e.clientX - window.innerWidth / 2) * 0.08;
+                targetMouseY = (e.clientY - window.innerHeight / 2) * 0.08;
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            let clock = new THREE.Clock();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const t = clock.getElapsedTime() * 0.7;
+
+                mouseX += (targetMouseX - mouseX) * 0.04;
+                mouseY += (targetMouseY - mouseY) * 0.04;
+
+                camera.position.x = mouseX * 0.4;
+                camera.position.y = 32 - mouseY * 0.35;
+                camera.lookAt(0, 0, 0);
+
+                const pos = geometry.attributes.position.array;
+                let idx = 0;
+                for (let ix = 0; ix < countX; ix++) {
+                    for (let iz = 0; iz < countZ; iz++) {
+                        const px = pos[idx];
+                        const pz = pos[idx + 2];
+
+                        const wave1 = Math.sin(px * 0.06 + t * 1.5) * 4.5;
+                        const wave2 = Math.cos(pz * 0.07 + t * 1.2) * 4.5;
+                        const wave3 = Math.sin((px + pz) * 0.04 + t * 0.9) * 3;
+
+                        const distToMouse = Math.sqrt((px - mouseX * 1.5)**2 + (pz - mouseY * 1.5)**2);
+                        let ripple = 0;
+                        if (distToMouse < 45) {
+                            ripple = Math.cos((distToMouse / 45) * Math.PI) * 5;
+                        }
+
+                        pos[idx + 1] = wave1 + wave2 + wave3 + ripple;
+                        idx += 3;
+                    }
+                }
+                geometry.attributes.position.needsUpdate = true;
+                renderer.render(scene, camera);
+            }
+            animate();
+        })();
+
+        // Track mouse position on glass cards for dynamic spotlight
+        const glassCards = document.querySelectorAll('.card-surface');
+        document.addEventListener('mousemove', (e) => {
+            glassCards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // Lightbox Modal Data & Logic
+        const projects = [
+            { title: '1. E-Commerce Mobile Application (6 Screens)', src: './assets/ui_ecommerce.png' },
+            { title: '2. "Mango" Learning Platform (6 Screens)', src: './assets/ui_education.png' },
+            { title: '3. CineStream Entertainment OTT App (5 Screens)', src: './assets/ui_cinema.jpg' },
+            { title: '4. QuickBite Food Delivery & Live GPS Route (6 Screens)', src: './assets/ui_food.png' },
+            { title: '5. "V" Job Recruitment & ATS Platform (5 Screens)', src: './assets/ui_jobs.png' }
+        ];
+
+        const lightbox = document.getElementById('lightbox');
+        const lbImg = document.getElementById('lightbox-image');
+        const lbTitle = document.getElementById('lightbox-title');
+        let lightboxIndex = 0;
+
+        function openLightbox(index) {
+            lightboxIndex = index;
+            updateLightboxView();
+            lightbox.classList.remove('closed');
+            lightbox.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function updateLightboxView() {
+            lbImg.src = projects[lightboxIndex].src;
+            lbTitle.innerText = projects[lightboxIndex].title;
+        }
+
+        function navigateLightbox(dir) {
+            lightboxIndex = (lightboxIndex + dir + projects.length) % projects.length;
+            updateLightboxView();
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('open');
+            lightbox.classList.add('closed');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (lightbox.classList.contains('open')) {
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowRight') navigateLightbox(1);
+                if (e.key === 'ArrowLeft') navigateLightbox(-1);
+            }
+        });
+
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+    </script>
+</body>
+</html>
